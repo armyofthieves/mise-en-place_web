@@ -32,6 +32,7 @@ export interface Recipe {
   title: string;
   description: string;
   source_url: string | null;
+  image_url?: string | null;
   servings: number;
   prep_time: string;
   cook_time: string;
@@ -50,6 +51,7 @@ export type RecipeCreate = Omit<Recipe, "id" | "created_at" | "updated_at">;
 export interface ParsedRecipe {
   title: string;
   description: string;
+  image_url?: string;
   servings: number;
   prep_time: string;
   cook_time: string;
@@ -59,13 +61,16 @@ export interface ParsedRecipe {
 }
 
 // ─── Menu ─────────────────────────────────────────────────────────────────────
-export type CookingDay = "Sunday" | "Monday" | "Tuesday" | "Wednesday" | "Thursday" | "Friday";
+export type CookingDay = "Sunday" | "Monday" | "Tuesday" | "Wednesday" | "Thursday" | "Friday" | "Saturday";
 
 export interface MenuDay {
   id: number;
   day: CookingDay;
   recipe: Recipe | null;
   recipe_id?: number | null;
+  week: number;
+  is_locked: boolean;
+  is_eat_out: boolean;
 }
 
 export interface WeeklyMenu {

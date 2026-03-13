@@ -20,12 +20,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   const fetchMe = useCallback(async () => {
+    console.log("fetchMe called");
     const token = localStorage.getItem("access_token");
-    if (!token) { setLoading(false); return; }
+    console.log("token:", token);
+    if (!token) { 
+      console.log("no token, setting loading false");
+      setLoading(false); 
+      return; 
+    }
     try {
       const { data } = await authApi.me();
+      console.log("user data:", data);
       setUser(data);
-    } catch {
+    } catch (e) {
+      console.log("error:", e);
       authApi.logout();
     } finally {
       setLoading(false);

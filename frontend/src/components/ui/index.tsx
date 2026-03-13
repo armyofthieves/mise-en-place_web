@@ -1,4 +1,4 @@
-import { type ReactNode, type CSSProperties, type InputHTMLAttributes, type TextareaHTMLAttributes, type ButtonHTMLAttributes, useState } from "react";
+import { type ReactNode, type CSSProperties, type InputHTMLAttributes, type TextareaHTMLAttributes, type ButtonHTMLAttributes } from "react";
 import { T, RATING_LABELS, RATING_COLORS } from "../../lib/theme";
 import type { Rating } from "../../types";
 
@@ -112,28 +112,36 @@ export function Modal({ title, onClose, children, wide }: ModalProps) {
 // ─── Rating Badge ─────────────────────────────────────────────────────────────
 interface RatingBadgeProps { rating: Rating | null; onChange: (r: Rating) => void; }
 export function RatingBadge({ rating, onChange }: RatingBadgeProps) {
-  const [open, setOpen] = useState(false);
   return (
-    <div style={{ position: "relative" }}>
-      <button onClick={(e) => { e.stopPropagation(); setOpen(!open); }} style={{
-        background: rating ? `${RATING_COLORS[rating]}20` : T.tag,
-        border: `1px solid ${rating ? RATING_COLORS[rating] : T.border}`,
-        color: rating ? RATING_COLORS[rating] : T.textMuted,
-        borderRadius: 20, padding: "3px 12px", fontSize: 12, cursor: "pointer", fontFamily: "'DM Mono',monospace",
-      }}>{rating ? RATING_LABELS[rating] : "Rate"}</button>
-      {open && (
-        <>
-          <div style={{ position: "fixed", inset: 0, zIndex: 98 }} onClick={() => setOpen(false)} />
-          <div style={{ position: "absolute", top: "calc(100% + 6px)", left: 0, zIndex: 200, background: T.surface, border: `1px solid ${T.border}`, borderRadius: 8, overflow: "hidden", minWidth: 160, boxShadow: "0 8px 32px rgba(0,0,0,.6)" }}>
-            {(Object.entries(RATING_LABELS) as [Rating, string][]).map(([k, v]) => (
-              <div key={k} onClick={() => { onChange(k); setOpen(false); }}
-                style={{ padding: "10px 14px", cursor: "pointer", fontSize: 13, color: RATING_COLORS[k] }}
-                onMouseEnter={(e) => (e.currentTarget.style.background = T.surfaceHover)}
-                onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}>{v}</div>
-            ))}
-          </div>
-        </>
-      )}
+    <div style={{ display: "flex", gap: 4, background: T.surface, padding: 2, borderRadius: 20, border: `1px solid ${T.border}` }} onClick={(e) => e.stopPropagation()}>
+      {(Object.entries(RATING_LABELS) as [Rating, string][]).map(([k, v]) => {
+        const isSel = rating === k;
+        return (
+          <button
+            key={k}
+            onClick={() => onChange(k)}
+            title={v}
+            style={{
+              background: isSel ? RATING_COLORS[k] : "transparent",
+              color: isSel ? "#fff" : T.textMuted,
+              border: "none",
+              borderRadius: 16,
+              padding: "4px 8px",
+              fontSize: 11,
+              cursor: "pointer",
+              fontFamily: "'DM Mono',monospace",
+              transition: "all .15s",
+              opacity: isSel ? 1 : 0.6,
+              minWidth: isSel ? "auto" : 24,
+              textAlign: "center"
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.opacity = "1"}
+            onMouseLeave={(e) => e.currentTarget.style.opacity = isSel ? "1" : "0.6"}
+          >
+            {isSel ? v : v[0]}
+          </button>
+        );
+      })}
     </div>
   );
 }

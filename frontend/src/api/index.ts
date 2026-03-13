@@ -34,7 +34,9 @@ api.interceptors.response.use(
         } catch {
           localStorage.removeItem("access_token");
           localStorage.removeItem("refresh_token");
-          window.location.href = "/login";
+          // Use Vite's BASE_URL to handle subdirectory deployment
+          const base = import.meta.env.BASE_URL.endsWith('/') ? import.meta.env.BASE_URL : `${import.meta.env.BASE_URL}/`;
+          window.location.href = `${base}login`;
         }
       }
     }
@@ -78,13 +80,20 @@ export const recipesApi = {
 export const menusApi = {
   list: () => api.get<WeeklyMenu[]>("/menus/"),
   get: (id: number) => api.get<WeeklyMenu>(`/menus/${id}/`),
-  generate: (enabledDays: CookingDay[], menuId?: number) =>
+  generate: (enabledDays: CookingDay[], weeks: number = 1, menuId?: number, eatOutDays?: CookingDay[]) =>
     api.post<WeeklyMenu>("/menus/generate/", {
       enabled_days: enabledDays,
+      weeks,
       menu_id: menuId,
+      eat_out_days: eatOutDays,
     }),
-  updateDay: (menuId: number, day: CookingDay, recipeId: number | null) =>
-    api.patch<WeeklyMenu>(`/menus/${menuId}/days/${day}/`, { recipe_id: recipeId }),
+  updateDay: (
+    menuId: number,
+    week: number,
+    day: CookingDay,
+    data: { recipe_id?: number | null; is_locked?: boolean; is_eat_out?: boolean }
+  ) =>
+    api.patch<WeeklyMenu>(`/menus/${menuId}/days/${week}/${day}/`, data),
 };
 
 // ─── Pantry ───────────────────────────────────────────────────────────────────

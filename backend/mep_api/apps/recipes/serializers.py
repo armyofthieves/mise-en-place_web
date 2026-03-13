@@ -23,7 +23,7 @@ class RecipeSerializer(serializers.ModelSerializer):
     class Meta:
         model = Recipe
         fields = (
-            "id", "title", "description", "source_url",
+            "id", "title", "description", "source_url", "image_url",
             "servings", "prep_time", "cook_time",
             "rating", "in_rotation", "tags",
             "ingredients", "steps",
@@ -63,14 +63,15 @@ class RecipeSerializer(serializers.ModelSerializer):
 
 
 class RecipeListSerializer(serializers.ModelSerializer):
-    """Lightweight serializer for list views — no nested steps."""
+    """Lightweight serializer for list views — now includes steps for modal display."""
     ingredients = IngredientSerializer(many=True, read_only=True)
+    steps = RecipeStepSerializer(many=True, read_only=True)
 
     class Meta:
         model = Recipe
         fields = (
-            "id", "title", "description", "source_url",
+            "id", "title", "description", "source_url", "image_url",
             "servings", "prep_time", "cook_time",
             "rating", "in_rotation", "tags",
-            "ingredients", "created_at",
+            "ingredients", "steps", "created_at",
         )

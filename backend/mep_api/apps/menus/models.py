@@ -39,11 +39,14 @@ class MenuDay(models.Model):
         blank=True,
         related_name="menu_days",
     )
+    is_locked = models.BooleanField(default=False)
+    is_eat_out = models.BooleanField(default=False)
+    week = models.PositiveSmallIntegerField(default=1)
 
     class Meta:
         db_table = "menu_days"
-        unique_together = ("menu", "day")
-        ordering = ["id"]
+        unique_together = ("menu", "day", "week")
+        ordering = ["week", "id"]
 
     def __str__(self):
-        return f"{self.day}: {self.recipe.title if self.recipe else '—'}"
+        return f"W{self.week} {self.day}: {'Eat Out' if self.is_eat_out else (self.recipe.title if self.recipe else '—')}"
