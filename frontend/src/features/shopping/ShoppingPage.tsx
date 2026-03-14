@@ -1,7 +1,7 @@
 import { useState } from "react";
 import type { Recipe, WeeklyMenu, PantryItem } from "../../types";
 import { pantryApi } from "../../api";
-import { T, COOKING_DAYS, formatQty, isPantryIngredient, mergeIngredients } from "../../lib/theme";
+import { T, COOKING_DAYS, formatQty, isPantryIngredient, mergeIngredients, getMatchingPantryItems } from "../../lib/theme";
 import { Btn } from "../../components/ui";
 
 interface Props {
@@ -15,19 +15,36 @@ interface Props {
 
 const STAPLE_KEYWORDS = ["oil","salt","pepper","sugar","flour","sauce","vinegar","powder","extract","seasoning","spice","herb","paste","stock","broth","garlic","onion","butter","milk"];
 
-export function ShoppingPage({ recipes, menu, pantryItems, setPantryItems }: Props) {
+export function ShoppingPage({ menu, pantryItems, setPantryItems }: Props) {
+  const [viewWeek, setViewWeek] = useState(1);
+  const [frequency, setFrequency] = useState<"weekly" | "twice">("twice");
   const [checked, setChecked] = useState<Record<string, boolean>>({});
   const [extras, setExtras] = useState<string[]>([]);
   const [newExtra, setNewExtra] = useState("");
 
   const pantryNames = pantryItems.map((p) => p.name);
-  const mealDays = COOKING_DAYS.filter((d) => menu?.days.find((md) => md.day === d && md.recipe));
-  const order1Days = mealDays.filter((_, i) => i < Math.ceil(mealDays.length / 2));
-  const order2Days = mealDays.filter((_, i) => i >= Math.ceil(mealDays.length / 2));
+  
+  // Filter days for the selected week
+  const currentWeekDays = menu?.days.filter(d => d.week === viewWeek) || [];
+  
+  // Get days that have a recipe (and not eat out)
+  const cookingDays = COOKING_DAYS.filter(d => {
+    const day = currentWeekDays.find(md => md.day === d);
+    return day?.recipe && !day.is_eat_out;
+  });
+
+  // Calculate lists based on frequency
+  const order1Days = frequency === "weekly" 
+    ? cookingDays 
+    : cookingDays.filter((_, i) => i < Math.ceil(cookingDays.length / 2));
+    
+  const order2Days = frequency === "weekly" 
+    ? [] 
+    : cookingDays.filter((_, i) => i >= Math.ceil(cookingDays.length / 2));
 
   const getList = (days: string[]) => {
     const recs = days
-      .map((d) => menu?.days.find((md) => md.day === d)?.recipe)
+      .map((d) => currentWeekDays.find((md) => md.day === d)?.recipe)
       .filter((r): r is Recipe => !!r);
     return mergeIngredients(recs.map((r) => r.ingredients ?? []));
   };
@@ -46,16 +63,39 @@ export function ShoppingPage({ recipes, menu, pantryItems, setPantryItems }: Pro
     setPantryItems((p) => [...p, data]);
   };
 
+  const handleRemoveFromPantry = async (ingredientName: string) => {
+    // Find all pantry items that match this ingredient
+    // e.g. Ingredient "Chicken Breast" might match pantry item "Chicken"
+    const matches = getMatchingPantryItems(ingredientName, pantryItems);
+    
+    if (matches.length === 0) return;
+
+    // Remove them all (usually there's just one match like "flour" matching "flour")
+    // If there are multiple (e.g. "Chicken" and "Chicken Breast" both in pantry?), remove all to be safe?
+    // Or just the first? Let's remove all matches to ensure it clears from the pantry list.
+    for (const item of matches) {
+        try {
+            await pantryApi.remove(item.id);
+            setPantryItems(p => p.filter(x => x.id !== item.id));
+        } catch (e) {
+            console.error("Failed to remove pantry item", item.name, e);
+        }
+    }
+  };
+
   const addExtra = () => {
     if (newExtra.trim()) { setExtras((e) => [...e, newExtra.trim()]); setNewExtra(""); }
   };
+
+  const maxWeeks = menu ? Math.max(...menu.days.map(d => d.week), 1) : 1;
 
   const OrderList = ({ label, days, list, orderId, accentColor }: {
     label: string; days: string[]; list: ReturnType<typeof getList>; orderId: string; accentColor: string;
   }) => {
     const needed = list.filter((i) => !isPantryIngredient(i.name, pantryNames));
     const pantryFlagged = list.filter((i) => isPantryIngredient(i.name, pantryNames));
-    const meals = days.map((d) => menu?.days.find((md) => md.day === d)?.recipe).filter((r): r is Recipe => !!r);
+    // Use currentWeekDays instead of searching global menu
+    const meals = days.map((d) => currentWeekDays.find((md) => md.day === d)?.recipe).filter((r): r is Recipe => !!r);
 
     return (
       <div style={{ background: T.surface, border: `1px solid ${accentColor}44`, borderRadius: 14, overflow: "hidden", marginBottom: 20 }}>
@@ -74,35 +114,43 @@ export function ShoppingPage({ recipes, menu, pantryItems, setPantryItems }: Pro
         </div>
         <div style={{ padding: 18 }}>
           {needed.length === 0 && pantryFlagged.length === 0
-            ? <p style={{ color: T.textFaint, fontSize: 13, margin: 0 }}>Generate a menu first</p>
+            ? <p style={{ color: T.textFaint, fontSize: 13, margin: 0 }}>No items needed for this list</p>
             : <>
+              {needed.length > 0 && (
+                  <div style={{ display: "grid", gridTemplateColumns: "24px 1fr 100px", gap: 12, marginBottom: 8, paddingBottom: 8, borderBottom: `1px solid ${T.border}` }}>
+                    <span></span>
+                    <span style={{ fontSize: 11, color: T.textMuted, textTransform: "uppercase", letterSpacing: 1, fontFamily: "'DM Mono',monospace" }}>Item</span>
+                    <span style={{ fontSize: 11, color: T.textMuted, textTransform: "uppercase", letterSpacing: 1, fontFamily: "'DM Mono',monospace", textAlign: "right" }}>Qty</span>
+                  </div>
+              )}
+              
               {needed.map((ing) => {
-                const key = `${orderId}-${ing.name.toLowerCase()}`;
+                const key = `${viewWeek}-${orderId}-${ing.name.toLowerCase()}`;
                 const done = checked[key];
                 return (
-                  <div key={key} onClick={() => setChecked((p) => ({ ...p, [key]: !p[key] }))} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 0", borderBottom: `1px solid ${T.border}`, cursor: "pointer", opacity: done ? .4 : 1, transition: "opacity .15s" }}>
+                  <div key={key} onClick={() => setChecked((p) => ({ ...p, [key]: !p[key] }))} style={{ display: "grid", gridTemplateColumns: "24px 1fr 100px", gap: 12, alignItems: "center", padding: "10px 0", borderBottom: `1px solid ${T.border}`, cursor: "pointer", opacity: done ? .4 : 1, transition: "opacity .15s" }}>
                     <div style={{ width: 20, height: 20, borderRadius: 4, border: `2px solid ${done ? accentColor : T.border}`, background: done ? accentColor : "transparent", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", transition: "all .15s" }}>
                       {done && <span style={{ color: "#000", fontSize: 12, fontWeight: 700 }}>✓</span>}
                     </div>
-                    <span style={{ color: accentColor, fontFamily: "'DM Mono',monospace", fontSize: 13, minWidth: 64, flexShrink: 0, textDecoration: done ? "line-through" : "none" }}>{formatQty(ing.quantity)}{ing.unit ? " " + ing.unit : ""}</span>
-                    <span style={{ color: T.text, fontSize: 15, flex: 1, textDecoration: done ? "line-through" : "none" }}>{ing.name}</span>
+                    <span style={{ color: T.text, fontSize: 15, textDecoration: done ? "line-through" : "none" }}>{ing.name}</span>
+                    <span style={{ color: accentColor, fontFamily: "'DM Mono',monospace", fontSize: 13, textAlign: "right", textDecoration: done ? "line-through" : "none", whiteSpace: "nowrap" }}>{formatQty(ing.quantity)}{ing.unit ? " " + ing.unit : ""}</span>
                   </div>
                 );
               })}
+              
               {pantryFlagged.length > 0 && (
                 <div style={{ marginTop: 16, paddingTop: 16, borderTop: `1px dashed ${T.border}` }}>
                   <p style={{ margin: "0 0 10px", fontSize: 11, color: T.textFaint, fontFamily: "'DM Mono',monospace", textTransform: "uppercase", letterSpacing: 1 }}>🧄 In pantry — check you have enough:</p>
                   {pantryFlagged.map((ing) => {
-                    const key = `${orderId}-pantry-${ing.name.toLowerCase()}`;
-                    const added = checked[key];
+                    const key = `${viewWeek}-${orderId}-pantry-${ing.name.toLowerCase()}`;
                     return (
                       <div key={key} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 0", borderBottom: `1px solid ${T.border}` }}>
                         <div style={{ display: "flex", gap: 10, alignItems: "center", opacity: .5 }}>
-                          <span style={{ color: T.textMuted, fontFamily: "'DM Mono',monospace", fontSize: 12, minWidth: 64 }}>{formatQty(ing.quantity)}{ing.unit ? " " + ing.unit : ""}</span>
-                          <span style={{ color: T.textMuted, fontSize: 14 }}>{ing.name}</span>
+                            <span style={{ color: T.textMuted, fontSize: 14 }}>{ing.name}</span>
+                            <span style={{ color: T.textMuted, fontFamily: "'DM Mono',monospace", fontSize: 12 }}>({formatQty(ing.quantity)}{ing.unit ? " " + ing.unit : ""})</span>
                         </div>
-                        <button onClick={() => setChecked((p) => ({ ...p, [key]: !p[key] }))} style={{ background: "none", border: `1px solid ${added ? accentColor : T.border}`, color: added ? accentColor : T.textMuted, borderRadius: 6, padding: "4px 12px", fontSize: 11, cursor: "pointer", fontFamily: "'DM Mono',monospace", flexShrink: 0 }}>
-                          {added ? "✓ On list" : "+ Add to list"}
+                        <button onClick={() => handleRemoveFromPantry(ing.name)} style={{ background: "none", border: `1px solid ${T.border}`, color: T.textMuted, borderRadius: 6, padding: "4px 12px", fontSize: 11, cursor: "pointer", fontFamily: "'DM Mono',monospace", flexShrink: 0 }}>
+                          + Add to list
                         </button>
                       </div>
                     );
@@ -123,8 +171,25 @@ export function ShoppingPage({ recipes, menu, pantryItems, setPantryItems }: Pro
           <h3 style={{ margin: 0, fontFamily: "'Playfair Display',serif", color: T.text }}>Shopping Lists</h3>
           <p style={{ margin: "4px 0 0", fontSize: 13, color: T.textMuted }}>Auto-generated from your weekly menu</p>
         </div>
-        <Btn variant="secondary" onClick={() => setChecked({})}>Clear all checks</Btn>
+        <div style={{ display: "flex", gap: 8 }}>
+            <div style={{ display: "flex", border: `1px solid ${T.border}`, borderRadius: 6, overflow: "hidden" }}>
+                <button onClick={() => setFrequency("twice")} style={{ padding: "6px 12px", background: frequency === "twice" ? T.accent : T.bg, color: frequency === "twice" ? "#000" : T.textMuted, border: "none", borderRight: `1px solid ${T.border}`, cursor: "pointer", fontSize: 12, fontFamily: "'DM Mono',monospace" }}>Twice / wk</button>
+                <button onClick={() => setFrequency("weekly")} style={{ padding: "6px 12px", background: frequency === "weekly" ? T.accent : T.bg, color: frequency === "weekly" ? "#000" : T.textMuted, border: "none", cursor: "pointer", fontSize: 12, fontFamily: "'DM Mono',monospace" }}>Once / wk</button>
+            </div>
+            <Btn variant="secondary" onClick={() => setChecked({})}>Clear checks</Btn>
+        </div>
       </div>
+
+      {menu && maxWeeks > 1 && (
+        <div style={{ display: "flex", gap: 4, marginBottom: 20, borderBottom: `1px solid ${T.border}` }}>
+            {Array.from({ length: maxWeeks }, (_, i) => i + 1).map(w => (
+                <button key={w} onClick={() => setViewWeek(w)} style={{
+                    padding: "8px 16px", background: "none", border: "none", borderBottom: `2px solid ${viewWeek === w ? T.accent : "transparent"}`,
+                    color: viewWeek === w ? T.text : T.textMuted, cursor: "pointer", fontSize: 14, fontFamily: "'DM Mono',monospace", marginBottom: -1
+                }}>Week {w}</button>
+            ))}
+        </div>
+      )}
 
       {pantryAddSuggestions.length > 0 && (
         <div style={{ background: `${T.accent}12`, border: `1px solid ${T.accent}44`, borderRadius: 12, padding: "14px 18px", marginBottom: 20 }}>
@@ -137,8 +202,14 @@ export function ShoppingPage({ recipes, menu, pantryItems, setPantryItems }: Pro
         </div>
       )}
 
-      <OrderList label="Order 1" days={order1Days} list={o1List} orderId="o1" accentColor={T.green} />
-      <OrderList label="Order 2" days={order2Days} list={o2List} orderId="o2" accentColor={T.blue} />
+      {frequency === "weekly" ? (
+         <OrderList label={`Full Week ${maxWeeks > 1 ? viewWeek : ""}`} days={order1Days} list={o1List} orderId="full" accentColor={T.green} />
+      ) : (
+        <>
+            <OrderList label={`Order 1 ${maxWeeks > 1 ? `(Week ${viewWeek})` : ""}`} days={order1Days} list={o1List} orderId="o1" accentColor={T.green} />
+            <OrderList label={`Order 2 ${maxWeeks > 1 ? `(Week ${viewWeek})` : ""}`} days={order2Days} list={o2List} orderId="o2" accentColor={T.blue} />
+        </>
+      )}
 
       <div style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 12, padding: 18 }}>
         <h4 style={{ margin: "0 0 14px", color: T.textMuted, fontFamily: "'Playfair Display',serif", fontSize: 16 }}>Extra items</h4>

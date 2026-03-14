@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "../hooks/useAuth";
-import { Inp, Btn } from "../components/ui";
-import { T } from "../lib/theme";
+import { useAuth } from "../../hooks/useAuth";
+import { Inp, Btn } from "../../components/ui";
+import { T } from "../../lib/theme";
 
 export function AuthPage() {
   const [mode, setMode] = useState<"login" | "register">("login");

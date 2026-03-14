@@ -18,7 +18,7 @@ function ProtectedApp() {
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [menu, setMenu] = useState<WeeklyMenu | null>(null);
   const [pantryItems, setPantryItems] = useState<PantryItem[]>([]);
-  const [dataLoading, setDataLoading] = useState(true);
+  const [dataLoading, setDataLoading] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -38,6 +38,24 @@ function ProtectedApp() {
       }
     }).finally(() => setDataLoading(false));
   }, [user]);
+
+  // Keep menu in sync with recipes (e.g. if a recipe is updated, reflect it in the menu)
+  useEffect(() => {
+    setMenu((prev) => {
+      if (!prev) return null;
+      let changed = false;
+      const newDays = prev.days.map((day) => {
+        if (!day.recipe) return day;
+        const current = recipes.find((r) => r.id === day.recipe!.id);
+        if (current && current !== day.recipe) {
+          changed = true;
+          return { ...day, recipe: current };
+        }
+        return day;
+      });
+      return changed ? { ...prev, days: newDays } : prev;
+    });
+  }, [recipes]);
 
   if (loading || dataLoading) {
     return (
@@ -72,7 +90,7 @@ function ProtectedApp() {
 
 export default function App() {
   return (
-    <BrowserRouter>
+    <BrowserRouter basename="/mise-en-place_web">
       <AuthProvider>
         <Routes>
           <Route path="/login" element={<AuthPage />} />
