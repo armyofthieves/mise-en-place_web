@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import type { Recipe, Rating } from "../types";
 import { recipesApi } from "../api";
 import { T, formatQty, isPantryIngredient, AVAILABLE_TAGS } from "../lib/theme";
-import { Tag, Modal, RatingBadge, Btn, Inp, Txt } from "./ui";
+import { Tag, Modal, RatingBadge, Btn, Inp } from "./ui";
 
 interface Props {
   recipe: Recipe;
