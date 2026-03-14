@@ -9,7 +9,7 @@ class MenuDaySerializer(serializers.ModelSerializer):
 
     class Meta:
         model = MenuDay
-        fields = ("id", "day", "recipe", "recipe_id")
+        fields = ("id", "day", "week", "recipe", "recipe_id", "is_locked", "is_eat_out")
 
 
 class WeeklyMenuSerializer(serializers.ModelSerializer):

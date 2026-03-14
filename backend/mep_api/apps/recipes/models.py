@@ -17,6 +17,7 @@ class Recipe(models.Model):
     title = models.CharField(max_length=300)
     description = models.TextField(blank=True)
     source_url = models.URLField(blank=True, null=True)
+    image_url = models.URLField(blank=True, null=True)
     servings = models.PositiveSmallIntegerField(default=4)
     prep_time = models.CharField(max_length=50, blank=True)
     cook_time = models.CharField(max_length=50, blank=True)

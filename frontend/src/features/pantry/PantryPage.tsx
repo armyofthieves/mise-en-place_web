@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import type { PantryItem, Recipe, WeeklyMenu } from "../../types";
 import { pantryApi } from "../../api";
-import { T } from "../../lib/theme";
+import { T, getPantryCategory, PANTRY_CATEGORIES } from "../../lib/theme";
 import { Tag, Btn } from "../../components/ui";
 
 interface Props {
@@ -29,6 +29,21 @@ export function PantryPage({ pantryItems, setPantryItems }: Props) {
     setPantryItems((p) => p.filter((x) => x.id !== item.id));
   };
 
+  const groupedItems = useMemo(() => {
+    const groups: Record<string, PantryItem[]> = {};
+    const categories = [...Object.keys(PANTRY_CATEGORIES), "Miscellaneous"];
+    
+    categories.forEach(cat => { groups[cat] = []; });
+    
+    pantryItems.forEach(item => {
+      const cat = getPantryCategory(item.name);
+      if (!groups[cat]) groups[cat] = [];
+      groups[cat].push(item);
+    });
+    
+    return groups;
+  }, [pantryItems]);
+
   return (
     <div style={{ maxWidth: 600 }}>
       <p style={{ color: T.textMuted, marginBottom: 18, fontSize: 14 }}>
@@ -43,9 +58,18 @@ export function PantryPage({ pantryItems, setPantryItems }: Props) {
           onBlur={(e) => e.target.style.borderColor = T.border} />
         <Btn onClick={add}>Add</Btn>
       </div>
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-        {pantryItems.map((item) => <Tag key={item.id} label={item.name} onRemove={() => remove(item)} />)}
-      </div>
+      
+      {Object.entries(groupedItems).map(([category, items]) => {
+        if (items.length === 0) return null;
+        return (
+          <div key={category} style={{ marginBottom: 20 }}>
+            <h4 style={{ color: T.accent, fontFamily: "'DM Mono',monospace", fontSize: 11, textTransform: "uppercase", letterSpacing: 1, margin: "0 0 10px" }}>{category}</h4>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+              {items.map((item) => <Tag key={item.id} label={item.name} onRemove={() => remove(item)} />)}
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }
