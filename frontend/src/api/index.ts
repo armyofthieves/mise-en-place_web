@@ -5,7 +5,18 @@ import type {
 } from "../types";
 
 const getBaseUrl = () => {
-  let url = import.meta.env.VITE_API_URL || "http://localhost:8000/api";
+  let url = import.meta.env.VITE_API_URL;
+
+  // If no env var is set, verify if we are in production
+  if (!url) {
+    if (import.meta.env.PROD) {
+      // Hardcoded fallback for production if secret is missing
+      url = "https://mise-en-place-api.onrender.com/api";
+    } else {
+      url = "http://localhost:8000/api";
+    }
+  }
+
   if (url.endsWith("/")) {
     url = url.slice(0, -1);
   }
