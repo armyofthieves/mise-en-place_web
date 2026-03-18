@@ -15,6 +15,7 @@ export function AuthPage() {
   const navigate = useNavigate();
 
   const handleSubmit = async () => {
+    console.log("Attempting auth:", { mode, email, apiUrl: import.meta.env.VITE_API_URL });
     setError(""); setLoading(true);
     try {
       if (mode === "login") {
@@ -23,9 +24,28 @@ export function AuthPage() {
         await register(email, username, password);
       }
       navigate("/recipes");
-    } catch (e: unknown) {
-      const msg = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
-      setError(msg ?? "Something went wrong. Check your credentials.");
+    } catch (e: any) {
+      console.error("Auth error details:", {
+        status: e.response?.status,
+        statusText: e.response?.statusText,
+        data: e.response?.data,
+        config: e.config
+      });
+      let msg = e.response?.data?.detail || e.response?.data?.non_field_errors?.[0];
+      
+      if (!msg && e.response) {
+        // Fallback for other errors (like 404, 405, 500)
+        msg = `Error ${e.response.status}: ${e.response.statusText}`;
+        if (e.response.status === 405) {
+          msg += " (Method Not Allowed - check API URL configuration)";
+        } else if (e.response.status === 404) {
+          msg += " (Not Found - check API URL configuration)";
+        }
+      } else if (!msg) {
+         msg = e.message || "Something went wrong. Check your credentials.";
+      }
+      
+      setError(msg);
     } finally {
       setLoading(false);
     }
