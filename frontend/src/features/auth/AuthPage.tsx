@@ -15,6 +15,7 @@ export function AuthPage() {
   const navigate = useNavigate();
 
   const handleSubmit = async () => {
+    console.log("Attempting auth:", { mode, email, apiUrl: import.meta.env.VITE_API_URL });
     setError(""); setLoading(true);
     try {
       if (mode === "login") {
@@ -24,7 +25,12 @@ export function AuthPage() {
       }
       navigate("/recipes");
     } catch (e: any) {
-      console.error("Auth error:", e);
+      console.error("Auth error details:", {
+        status: e.response?.status,
+        statusText: e.response?.statusText,
+        data: e.response?.data,
+        config: e.config
+      });
       let msg = e.response?.data?.detail || e.response?.data?.non_field_errors?.[0];
       
       if (!msg && e.response) {

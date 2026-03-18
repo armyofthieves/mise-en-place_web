@@ -4,7 +4,15 @@ import type {
   WeeklyMenu, PantryItem, CookingDay,
 } from "../types";
 
-const BASE = import.meta.env.VITE_API_URL ?? "http://localhost:8000/api";
+const getBaseUrl = () => {
+  let url = import.meta.env.VITE_API_URL || "http://localhost:8000/api";
+  if (url.endsWith("/")) {
+    url = url.slice(0, -1);
+  }
+  return url;
+};
+
+const BASE = getBaseUrl();
 
 export const api = axios.create({ baseURL: BASE });
 
