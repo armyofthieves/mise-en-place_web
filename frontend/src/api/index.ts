@@ -7,6 +7,12 @@ import type {
 const getBaseUrl = () => {
   let url = import.meta.env.VITE_API_URL;
 
+  // Safety check: If URL is pointing to GitHub Pages (frontend), it's wrong. Force Render backend.
+  if (url && url.includes("github.io")) {
+    console.warn("VITE_API_URL appears to be set to the frontend URL. Forcing Render backend URL.");
+    url = "https://mise-en-place-api.onrender.com/api";
+  }
+
   // If no env var is set, verify if we are in production
   if (!url) {
     if (import.meta.env.PROD) {
