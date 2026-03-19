@@ -7,15 +7,24 @@ import type {
 const getBaseUrl = () => {
   let url = import.meta.env.VITE_API_URL;
 
+  console.log("Environment Debug:", {
+    VITE_API_URL: url,
+    PROD: import.meta.env.PROD,
+    MODE: import.meta.env.MODE,
+    BASE_URL: import.meta.env.BASE_URL
+  });
+
   // Safety check: If URL is pointing to GitHub Pages (frontend), it's wrong. Force Render backend.
   if (url && url.includes("github.io")) {
     console.warn("VITE_API_URL appears to be set to the frontend URL. Forcing Render backend URL.");
     url = "https://mise-en-place-api.onrender.com/api";
   }
 
+  const isGithubPages = window.location.hostname.includes("github.io");
+
   // If no env var is set, verify if we are in production
   if (!url) {
-    if (import.meta.env.PROD) {
+    if (import.meta.env.PROD || isGithubPages) {
       // Hardcoded fallback for production if secret is missing
       url = "https://mise-en-place-api.onrender.com/api";
     } else {
